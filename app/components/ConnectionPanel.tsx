@@ -2,9 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button, Label, TextInput, Select, Alert } from "flowbite-react";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+import { v4 as uuidv4 } from 'uuid';
 
 interface ConnectionPanelProps {
   isConnected: boolean;
@@ -20,11 +18,17 @@ export default function ConnectionPanel({
   addLog 
 }: ConnectionPanelProps) {
   const [protocol, setProtocol] = useState<"stdio" | "sse">("stdio");
-  const [command, setCommand] = useState("");
-  const [args, setArgs] = useState("");
+  const [command, setCommand] = useState("node");
+  const [args, setArgs] = useState("test-server.js");
   const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
+  const [sessionId, setSessionId] = useState<string>("");
+
+  useEffect(() => {
+    // Generate a unique session ID when the component mounts
+    setSessionId(uuidv4());
+  }, []);
 
   const handleConnect = async () => {
     try {
@@ -32,7 +36,6 @@ export default function ConnectionPanel({
       setConnecting(true);
       addLog(`Connecting to MCP server using ${protocol} protocol...`);
 
-      let transport;
       if (protocol === "stdio") {
         if (!command) {
           setError("Command is required for stdio protocol");
@@ -40,74 +43,157 @@ export default function ConnectionPanel({
           return;
         }
         
-        const argsArray = args ? args.split(" ").filter(arg => arg.trim() !== "") : [];
-        transport = new StdioClientTransport({
-          command,
-          args: argsArray
+        // Call the API route to connect to the MCP server
+        const response = await fetch('/api/mcp', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: 'connect',
+            sessionId,
+            command,
+            args
+          }),
         });
-      } else {
-        if (!url) {
-          setError("URL is required for SSE protocol");
-          setConnecting(false);
-          return;
+
+        const data = await response.json();
+        
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || 'Failed to connect to MCP server');
         }
         
-        transport = new SSEClientTransport(new URL(url));
-      }
-
-      const client = new Client(
-        {
-          name: "mcp-client-tester",
-          version: "1.0.0"
-        },
-        {
-          capabilities: {
-            prompts: {},
-            resources: {},
-            tools: {}
+        // Create a client proxy that will forward requests to the API route
+        const clientProxy = {
+          sessionId,
+          listResources: async () => {
+            return await callMethod('listResources');
+          },
+          listResourceTemplates: async () => {
+            return await callMethod('listResourceTemplates');
+          },
+          readResource: async (params: any) => {
+            return await callMethod('readResource', params);
+          },
+          listPrompts: async () => {
+            return await callMethod('listPrompts');
+          },
+          getPrompt: async (params: any) => {
+            return await callMethod('getPrompt', params);
+          },
+          listTools: async () => {
+            return await callMethod('listTools');
+          },
+          callTool: async (params: any) => {
+            return await callMethod('callTool', params);
+          },
+          close: async () => {
+            return await disconnectFromServer();
           }
-        }
-      );
-
-      // Set up message logging
-      transport.onmessage = (message) => {
-        addLog(`Received: ${JSON.stringify(message)}`);
-      };
-
-      transport.onerror = (err) => {
-        addLog(`Transport error: ${err.message}`);
-        setError(`Transport error: ${err.message}`);
-        setIsConnected(false);
-      };
-
-      transport.onclose = () => {
-        addLog("Connection closed");
-        setIsConnected(false);
-      };
-
-      await client.connect(transport);
-      
-      addLog("Connected to MCP server successfully");
-      setClient(client);
-      setIsConnected(true);
+        };
+        
+        addLog("Connected to MCP server successfully");
+        setClient(clientProxy);
+        setIsConnected(true);
+      } else {
+        setError("SSE protocol is not supported in this version");
+        setConnecting(false);
+      }
     } catch (err: any) {
-      addLog(`Connection error: ${err.message}`);
-      setError(`Connection error: ${err.message}`);
+      const errorMessage = err.message || 'Unknown error';
+      
+      // Provide more helpful error messages
+      let userFriendlyMessage = errorMessage;
+      
+      if (errorMessage.includes('ENOENT')) {
+        userFriendlyMessage = `Could not find or execute the command: ${command}. Make sure the file exists and is executable.`;
+      } else if (errorMessage.includes('field.isOptional')) {
+        userFriendlyMessage = 'The server is using an incompatible schema format. Make sure you are using the latest version of the MCP SDK and Zod for schema validation.';
+      } else if (errorMessage.includes('Cannot read properties of undefined')) {
+        userFriendlyMessage = 'The server returned an invalid response. Check the server implementation for errors.';
+      }
+      
+      addLog(`Connection error: ${userFriendlyMessage}`);
+      setError(`Connection error: ${userFriendlyMessage}`);
     } finally {
       setConnecting(false);
+    }
+  };
+
+  const callMethod = async (method: string, params: any = {}) => {
+    try {
+      addLog(`Calling method: ${method}`);
+      
+      const response = await fetch('/api/mcp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'call',
+          sessionId,
+          method,
+          params
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || `Failed to call method: ${method}`);
+      }
+      
+      addLog(`Method ${method} completed successfully`);
+      return data.result;
+    } catch (err: any) {
+      const errorMessage = err.message || 'Unknown error';
+      
+      // Provide more helpful error messages
+      let userFriendlyMessage = errorMessage;
+      
+      if (errorMessage.includes('field.isOptional')) {
+        userFriendlyMessage = 'The server is using an incompatible schema format. Make sure you are using the latest version of the MCP SDK and Zod for schema validation.';
+      } else if (errorMessage.includes('Cannot read properties of undefined')) {
+        userFriendlyMessage = 'The server returned an invalid response. Check the server implementation for errors.';
+      }
+      
+      addLog(`Error calling method ${method}: ${userFriendlyMessage}`);
+      throw new Error(userFriendlyMessage);
+    }
+  };
+
+  const disconnectFromServer = async () => {
+    try {
+      const response = await fetch('/api/mcp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'disconnect',
+          sessionId
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to disconnect from MCP server');
+      }
+      
+      return true;
+    } catch (err: any) {
+      addLog(`Error disconnecting: ${err.message}`);
+      throw err;
     }
   };
 
   const handleDisconnect = async () => {
     try {
       addLog("Disconnecting from MCP server...");
-      // The client has a close method that we can call
-      await setClient((prevClient: any) => {
-        if (prevClient) {
-          prevClient.close();
-        }
-        return null;
-      });
+      
+      await disconnectFromServer();
+      setClient(null);
       setIsConnected(false);
       addLog("Disconnected from MCP server");
     } catch (err: any) {
@@ -144,30 +230,32 @@ export default function ConnectionPanel({
 
         {protocol === "stdio" ? (
           <>
-            <div className="md:col-span-2">
+            <div>
               <div className="mb-2 block">
                 <Label htmlFor="command" value="Command" />
               </div>
               <TextInput
                 id="command"
-                placeholder="node test-server.js"
+                placeholder="node"
                 value={command}
                 onChange={(e) => setCommand(e.target.value)}
                 disabled={isConnected}
                 required
               />
+              <p className="mt-1 text-xs text-gray-500">The executable (e.g., node)</p>
             </div>
-            <div>
+            <div className="md:col-span-2">
               <div className="mb-2 block">
                 <Label htmlFor="args" value="Arguments" />
               </div>
               <TextInput
                 id="args"
-                placeholder="--arg1 value1"
+                placeholder="test-server.js"
                 value={args}
                 onChange={(e) => setArgs(e.target.value)}
                 disabled={isConnected}
               />
+              <p className="mt-1 text-xs text-gray-500">Script and arguments (e.g., test-server.js)</p>
             </div>
           </>
         ) : (

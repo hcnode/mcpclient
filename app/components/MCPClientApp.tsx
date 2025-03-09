@@ -14,7 +14,9 @@ export default function MCPClientApp() {
   const [logs, setLogs] = useState<string[]>([]);
 
   const addLog = (message: string) => {
-    setLogs((prevLogs) => [...prevLogs, `[${new Date().toISOString()}] ${message}`]);
+    const now = new Date();
+    const timeString = now.toTimeString().split(' ')[0];
+    setLogs((prevLogs) => [...prevLogs, `[${timeString}] ${message}`]);
   };
 
   useEffect(() => {

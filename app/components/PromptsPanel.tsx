@@ -27,9 +27,22 @@ export default function PromptsPanel({ isConnected, client, addLog }: PromptsPan
       setError(null);
       addLog("Fetching prompts...");
 
-      const promptsList = await client.listPrompts();
-      setPrompts(promptsList.prompts || []);
-      addLog(`Fetched ${promptsList.prompts?.length || 0} prompts`);
+      try {
+        const promptsList = await client.listPrompts();
+        setPrompts(promptsList.prompts || []);
+        addLog(`Fetched ${promptsList.prompts?.length || 0} prompts`);
+      } catch (err: any) {
+        // Handle specific errors
+        if (err.message.includes('field.isOptional is not a function')) {
+          setError("Prompts are not supported by this server due to schema compatibility issues.");
+          addLog("Prompts are not supported by this server due to schema compatibility issues.");
+        } else if (err.message.includes('Method not found') || err.code === -32601) {
+          setError("This server does not support prompts.");
+          addLog("This server does not support prompts.");
+        } else {
+          throw err;
+        }
+      }
     } catch (err: any) {
       addLog(`Error fetching prompts: ${err.message}`);
       setError(`Error fetching prompts: ${err.message}`);
@@ -116,7 +129,7 @@ export default function PromptsPanel({ isConnected, client, addLog }: PromptsPan
             </div>
 
             {error && (
-              <Alert color="failure" className="mb-4">
+              <Alert color="warning" className="mb-4">
                 {error}
               </Alert>
             )}
@@ -127,47 +140,53 @@ export default function PromptsPanel({ isConnected, client, addLog }: PromptsPan
               </div>
             ) : (
               <>
-                <Accordion className="mb-4">
-                  <Accordion.Panel>
-                    <Accordion.Title>Prompts ({prompts.length})</Accordion.Title>
-                    <Accordion.Content>
-                      {prompts.length === 0 ? (
-                        <p className="text-gray-500">No prompts available</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {prompts.map((prompt, index) => (
-                            <div 
-                              key={index} 
-                              className={`cursor-pointer rounded-lg p-3 ${
-                                selectedPrompt === prompt.name 
-                                  ? 'bg-blue-100 dark:bg-blue-900' 
-                                  : 'bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600'
-                              }`}
-                              onClick={() => handlePromptSelect(prompt.name)}
-                            >
-                              <div className="mb-1 font-semibold">{prompt.name}</div>
-                              {prompt.description && (
-                                <div className="mb-1 text-sm text-gray-600 dark:text-gray-300">{prompt.description}</div>
-                              )}
-                              {prompt.arguments && prompt.arguments.length > 0 && (
-                                <div className="mt-2">
-                                  <div className="text-sm font-medium">Arguments:</div>
-                                  <div className="mt-1 flex flex-wrap gap-1">
-                                    {prompt.arguments.map((arg: any) => (
-                                      <Badge key={arg.name} color="info" className="text-xs">
-                                        {arg.name}{arg.required ? '*' : ''}
-                                      </Badge>
-                                    ))}
+                {prompts.length === 0 && !error ? (
+                  <Alert color="info" className="mb-4">
+                    No prompts available from this server.
+                  </Alert>
+                ) : (
+                  <Accordion className="mb-4">
+                    <Accordion.Panel>
+                      <Accordion.Title>Prompts ({prompts.length})</Accordion.Title>
+                      <Accordion.Content>
+                        {prompts.length === 0 ? (
+                          <p className="text-gray-500">No prompts available</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {prompts.map((prompt, index) => (
+                              <div 
+                                key={index} 
+                                className={`cursor-pointer rounded-lg p-3 ${
+                                  selectedPrompt === prompt.name 
+                                    ? 'bg-blue-100 dark:bg-blue-900' 
+                                    : 'bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600'
+                                }`}
+                                onClick={() => handlePromptSelect(prompt.name)}
+                              >
+                                <div className="mb-1 font-semibold">{prompt.name}</div>
+                                {prompt.description && (
+                                  <div className="mb-1 text-sm text-gray-600 dark:text-gray-300">{prompt.description}</div>
+                                )}
+                                {prompt.arguments && prompt.arguments.length > 0 && (
+                                  <div className="mt-2">
+                                    <div className="text-sm font-medium">Arguments:</div>
+                                    <div className="mt-1 flex flex-wrap gap-1">
+                                      {prompt.arguments.map((arg: any) => (
+                                        <Badge key={arg.name} color="info" className="text-xs">
+                                          {arg.name}{arg.required ? '*' : ''}
+                                        </Badge>
+                                      ))}
+                                    </div>
                                   </div>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </Accordion.Content>
-                  </Accordion.Panel>
-                </Accordion>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </Accordion.Content>
+                    </Accordion.Panel>
+                  </Accordion>
+                )}
 
                 {selectedPromptObj && (
                   <div className="mb-4">
