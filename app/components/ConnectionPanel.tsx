@@ -4,6 +4,13 @@ import { useState, useEffect } from "react";
 import { Button, Label, TextInput, Select, Alert } from "flowbite-react";
 import { v4 as uuidv4 } from 'uuid';
 
+interface ServerConfig {
+  protocol: "stdio" | "sse";
+  command: string;
+  args: string;
+  url: string;
+}
+
 interface ConnectionPanelProps {
   isConnected: boolean;
   setIsConnected: (connected: boolean) => void;
@@ -24,11 +31,38 @@ export default function ConnectionPanel({
   const [error, setError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [sessionId, setSessionId] = useState<string>("");
+  const [serverHistory, setServerHistory] = useState<ServerConfig[]>([]);
 
   useEffect(() => {
     // Generate a unique session ID when the component mounts
     setSessionId(uuidv4());
+    
+    // Load server history from localStorage
+    const savedHistory = localStorage.getItem('serverHistory');
+    if (savedHistory) {
+      setServerHistory(JSON.parse(savedHistory));
+    }
   }, []);
+
+  const saveToHistory = (config: ServerConfig) => {
+    const newHistory = [config, ...serverHistory.filter(item => 
+      !(item.protocol === config.protocol && 
+        item.command === config.command && 
+        item.args === config.args && 
+        item.url === config.url)
+    )].slice(0, 5); // Keep only last 5 connections
+    
+    setServerHistory(newHistory);
+    localStorage.setItem('serverHistory', JSON.stringify(newHistory));
+  };
+
+  const handleHistorySelect = (index: number) => {
+    const selected = serverHistory[index];
+    setProtocol(selected.protocol);
+    setCommand(selected.command);
+    setArgs(selected.args);
+    setUrl(selected.url);
+  };
 
   const handleConnect = async () => {
     try {
@@ -62,6 +96,9 @@ export default function ConnectionPanel({
         if (!response.ok || !data.success) {
           throw new Error(data.error || 'Failed to connect to MCP server');
         }
+        
+        // Save successful connection to history
+        saveToHistory({ protocol, command, args, url });
         
         // Create a client proxy that will forward requests to the API route
         const clientProxy = {
@@ -210,6 +247,28 @@ export default function ConnectionPanel({
         <Alert color="failure" className="mb-4">
           {error}
         </Alert>
+      )}
+      
+      {serverHistory.length > 0 && !isConnected && (
+        <div className="mb-4">
+          <div className="mb-2 block">
+            <Label htmlFor="history" value="Recent Connections" />
+          </div>
+          <Select
+            id="history"
+            onChange={(e) => handleHistorySelect(parseInt(e.target.value))}
+            value=""
+          >
+            <option value="">Select a recent connection...</option>
+            {serverHistory.map((item, index) => (
+              <option key={index} value={index}>
+                {item.protocol === "stdio" 
+                  ? `${item.command} ${item.args}`
+                  : item.url}
+              </option>
+            ))}
+          </Select>
+        </div>
       )}
       
       <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-4">

@@ -46,7 +46,14 @@ export default function MCPClientApp() {
         <div className="lg:col-span-2">
           <Card>
             <Tabs aria-label="MCP Features" style="underline">
-              <Tabs.Item active title="Resources" icon={() => <span className="mr-2">📚</span>}>
+              <Tabs.Item active title="Tools" icon={() => <span className="mr-2">🔧</span>}>
+                <ToolsPanel 
+                  isConnected={isConnected} 
+                  client={client}
+                  addLog={addLog}
+                />
+              </Tabs.Item>
+              <Tabs.Item title="Resources" icon={() => <span className="mr-2">📚</span>}>
                 <ResourcesPanel 
                   isConnected={isConnected} 
                   client={client}
@@ -55,13 +62,6 @@ export default function MCPClientApp() {
               </Tabs.Item>
               <Tabs.Item title="Prompts" icon={() => <span className="mr-2">💬</span>}>
                 <PromptsPanel 
-                  isConnected={isConnected} 
-                  client={client}
-                  addLog={addLog}
-                />
-              </Tabs.Item>
-              <Tabs.Item title="Tools" icon={() => <span className="mr-2">🔧</span>}>
-                <ToolsPanel 
                   isConnected={isConnected} 
                   client={client}
                   addLog={addLog}

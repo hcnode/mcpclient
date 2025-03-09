@@ -163,13 +163,13 @@ export default function PromptsPanel({ isConnected, client, addLog }: PromptsPan
                                 }`}
                                 onClick={() => handlePromptSelect(prompt.name)}
                               >
-                                <div className="mb-1 font-semibold">{prompt.name}</div>
+                                <div className="mb-1 font-semibold dark:text-white">{prompt.name}</div>
                                 {prompt.description && (
                                   <div className="mb-1 text-sm text-gray-600 dark:text-gray-300">{prompt.description}</div>
                                 )}
                                 {prompt.arguments && prompt.arguments.length > 0 && (
                                   <div className="mt-2">
-                                    <div className="text-sm font-medium">Arguments:</div>
+                                    <div className="text-sm font-medium dark:text-white">Arguments:</div>
                                     <div className="mt-1 flex flex-wrap gap-1">
                                       {prompt.arguments.map((arg: any) => (
                                         <Badge key={arg.name} color="info" className="text-xs">
@@ -236,7 +236,7 @@ export default function PromptsPanel({ isConnected, client, addLog }: PromptsPan
                   <div className="mt-4">
                     <h3 className="mb-2 text-lg font-semibold dark:text-white">Prompt Result</h3>
                     <div className="max-h-[400px] overflow-auto rounded-lg bg-gray-100 p-4 dark:bg-gray-700">
-                      <pre className="whitespace-pre-wrap break-all">
+                      <pre className="whitespace-pre-wrap break-all dark:text-gray-300">
                         {JSON.stringify(promptResult, null, 2)}
                       </pre>
                     </div>

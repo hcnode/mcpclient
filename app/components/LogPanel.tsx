@@ -40,7 +40,7 @@ export default function LogPanel({ logs }: LogPanelProps) {
           <p className="text-gray-500 dark:text-gray-400">No logs yet. Connect to a server to see logs.</p>
         ) : (
           logs.map((log, index) => (
-            <div key={index} className="mb-1 break-all">
+            <div key={index} className="mb-1 break-all dark:text-gray-300">
               {log}
             </div>
           ))

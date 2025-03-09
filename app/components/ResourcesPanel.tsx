@@ -199,7 +199,7 @@ export default function ResourcesPanel({ isConnected, client, addLog }: Resource
                   <div className="mt-4">
                     <h3 className="mb-2 text-lg font-semibold dark:text-white">Resource Content</h3>
                     <div className="max-h-[400px] overflow-auto rounded-lg bg-gray-100 p-4 dark:bg-gray-700">
-                      <pre className="whitespace-pre-wrap break-all">
+                      <pre className="whitespace-pre-wrap break-all dark:text-gray-300">
                         {JSON.stringify(resourceContent, null, 2)}
                       </pre>
                     </div>

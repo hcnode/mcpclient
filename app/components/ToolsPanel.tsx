@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button, TextInput, Label, Accordion, Spinner, Alert, Badge, Textarea, ToggleSwitch } from "flowbite-react";
+import { Button, TextInput, Label, Accordion, Spinner, Alert, Badge, Textarea, ToggleSwitch, Select } from "flowbite-react";
 
 // Define example JSON outside the component to avoid linter issues
 const exampleJson = `{
@@ -269,142 +269,108 @@ export default function ToolsPanel({ isConnected, client, addLog }: ToolsPanelPr
               </div>
             ) : (
               <>
-                <Accordion className="mb-4">
-                  <Accordion.Panel>
-                    <Accordion.Title>Tools ({tools.length})</Accordion.Title>
-                    <Accordion.Content>
-                      {tools.length === 0 ? (
-                        <p className="text-gray-500">No tools available</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {tools.map((tool, index) => (
-                            <div 
-                              key={index} 
-                              className={`cursor-pointer rounded-lg p-3 ${
-                                selectedTool === tool.name 
-                                  ? 'bg-blue-100 dark:bg-blue-900' 
-                                  : 'bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600'
-                              }`}
-                              onClick={() => handleToolSelect(tool.name)}
-                            >
-                              <div className="mb-1 font-semibold">{tool.name}</div>
-                              {tool.description && (
-                                <div className="mb-1 text-sm text-gray-600 dark:text-gray-300">{tool.description}</div>
-                              )}
-                              {tool.inputSchema && (
-                                <div className="mt-2">
-                                  <div className="text-sm font-medium">Parameters:</div>
-                                  <div className="mt-1">
-                                    {tool.inputSchema.properties && Object.entries(tool.inputSchema.properties).map(([key, value]: [string, any]) => (
-                                      <div key={key} className="mb-2 rounded border border-gray-200 p-2 dark:border-gray-600">
-                                        <div className="flex items-center gap-2">
-                                          <span className="font-medium">{key}</span>
-                                          {tool.inputSchema.required && tool.inputSchema.required.includes(key) && (
-                                            <Badge color="red" size="xs">Required</Badge>
-                                          )}
-                                        </div>
-                                        <div className="mt-1 text-xs">
-                                          <div><strong>Type:</strong> {value.type}</div>
-                                          {value.description && <div><strong>Description:</strong> {value.description}</div>}
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                              {tool.parameters && Object.keys(tool.parameters).length > 0 && (
-                                <div className="mt-2">
-                                  <div className="text-sm font-medium">Parameters:</div>
-                                  <div className="mt-1 flex flex-wrap gap-1">
-                                    {Object.entries(tool.parameters).map(([key, value]: [string, any]) => (
-                                      <Badge key={key} color="info" className="text-xs">
-                                        {key}{value.required ? '*' : ''}: {value.type || 'any'}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
+                <div className="mb-4">
+                  <div className="mb-2">
+                    <Label htmlFor="tool-select" value="Select a tool" />
+                  </div>
+                  <Select
+                    id="tool-select"
+                    value={selectedTool}
+                    onChange={(e) => handleToolSelect(e.target.value)}
+                  >
+                    <option value="">Choose a tool...</option>
+                    {tools.map((tool, index) => (
+                      <option key={index} value={tool.name}>
+                        {tool.name}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+
+                {selectedToolObj && (
+                  <div className="mb-4 rounded-lg border border-gray-200 p-4 dark:border-gray-600">
+                    <h4 className="mb-2 font-medium dark:text-white">Tool Details</h4>
+                    {selectedToolObj.description && (
+                      <p className="mb-3 text-sm text-gray-600 dark:text-gray-300">
+                        {selectedToolObj.description}
+                      </p>
+                    )}
+                    {selectedToolObj.inputSchema && selectedToolObj.inputSchema.properties && (
+                      <div className="mt-2">
+                        <div className="text-sm font-medium dark:text-white">Parameters:</div>
+                        <div className="mt-2 space-y-2">
+                          {Object.entries(selectedToolObj.inputSchema.properties).map(([key, value]: [string, any]) => (
+                            <div key={key} className="rounded border border-gray-200 p-2 dark:border-gray-600">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium dark:text-white">{key}</span>
+                                {selectedToolObj.inputSchema.required && selectedToolObj.inputSchema.required.includes(key) && (
+                                  <Badge color="red" size="xs">Required</Badge>
+                                )}
+                              </div>
+                              <div className="mt-1 text-xs dark:text-gray-300">
+                                <div><strong className="dark:text-white">Type:</strong> {value.type}</div>
+                                {value.description && <div><strong className="dark:text-white">Description:</strong> {value.description}</div>}
+                              </div>
                             </div>
                           ))}
                         </div>
-                      )}
-                    </Accordion.Content>
-                  </Accordion.Panel>
-                </Accordion>
-
-                {selectedToolObj && (
-                  <div className="mb-4">
-                    <h3 className="mb-2 text-lg font-semibold dark:text-white">
-                      Tool: {selectedToolObj.name}
-                    </h3>
-                    
-                    <div className="mb-4">
-                      <div className="mb-2 flex items-center">
-                        <span className="mr-2">Form Mode</span>
-                        <ToggleSwitch
-                          checked={jsonMode}
-                          onChange={setJsonMode}
-                          label="JSON Mode"
-                        />
                       </div>
-                      
-                      {jsonMode ? (
-                        <div>
-                          <div className="mb-1 block">
-                            <Label htmlFor="jsonArgs" value="Arguments (JSON)" />
-                            <p className="mt-1 text-xs text-gray-500">Enter parameters as JSON object</p>
-                          </div>
-                          <Textarea
-                            id="jsonArgs"
-                            value={jsonArgsText}
-                            onChange={(e) => setJsonArgsText(e.target.value)}
-                            rows={8}
-                            className="font-mono"
-                          />
-                          <div className="mt-2">
-                            <Alert color="info">
-                              <div className="text-sm">
-                                <p className="font-medium">Example for &quot;add&quot; tool:</p>
-                                <pre className="mt-1 rounded bg-gray-100 p-2 dark:bg-gray-800">
-                                  {exampleJson}
-                                </pre>
-                              </div>
-                            </Alert>
-                          </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="mb-4">
+                  <h3 className="mb-2 text-lg font-semibold dark:text-white">
+                    Tool: {selectedToolObj?.name}
+                  </h3>
+                  
+                  <div className="mb-4">
+                    <div className="mb-2 flex items-center">
+                      <span className="mr-2 dark:text-white">Form Mode</span>
+                      <ToggleSwitch
+                        checked={jsonMode}
+                        onChange={setJsonMode}
+                        label="JSON Mode"
+                      />
+                    </div>
+                    
+                    {jsonMode ? (
+                      <div>
+                        <div className="mb-1 block">
+                          <Label htmlFor="jsonArgs" value="Arguments (JSON)" className="dark:text-white" />
+                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Enter parameters as JSON object</p>
                         </div>
-                      ) : (
-                        hasParameters ? (
-                          <div className="space-y-3">
-                            <h4 className="font-medium dark:text-white">Parameters</h4>
-                            {selectedToolObj.inputSchema && selectedToolObj.inputSchema.properties ? (
-                              // Use inputSchema if available
-                              Object.entries(selectedToolObj.inputSchema.properties).map(([key, value]: [string, any]) => {
-                                const isRequired = selectedToolObj.inputSchema.required && 
-                                                  selectedToolObj.inputSchema.required.includes(key);
-                                return (
-                                  <div key={key}>
-                                    <div className="mb-1 block">
-                                      <Label htmlFor={`arg-${key}`} value={`${key}${isRequired ? ' *' : ''}`} />
-                                      {value.description && (
-                                        <p className="text-xs text-gray-500 dark:text-gray-400">{value.description}</p>
-                                      )}
-                                    </div>
-                                    <TextInput
-                                      id={`arg-${key}`}
-                                      value={toolArgs[key] || ""}
-                                      onChange={(e) => handleToolArgChange(key, e.target.value)}
-                                      required={isRequired}
-                                      placeholder={value.type === 'number' ? "0" : value.type === 'boolean' ? "true/false" : ""}
-                                    />
-                                  </div>
-                                );
-                              })
-                            ) : (
-                              // Fall back to parameters if inputSchema is not available
-                              Object.entries(selectedToolObj.parameters).map(([key, value]: [string, any]) => (
+                        <Textarea
+                          id="jsonArgs"
+                          value={jsonArgsText}
+                          onChange={(e) => setJsonArgsText(e.target.value)}
+                          rows={8}
+                          className="font-mono"
+                        />
+                        <div className="mt-2">
+                          <Alert color="info">
+                            <div className="text-sm">
+                              <p className="font-medium dark:text-white">Example for &quot;add&quot; tool:</p>
+                              <pre className="mt-1 rounded bg-gray-100 p-2 dark:bg-gray-800">
+                                {exampleJson}
+                              </pre>
+                            </div>
+                          </Alert>
+                        </div>
+                      </div>
+                    ) : (
+                      hasParameters ? (
+                        <div className="space-y-3">
+                          <h4 className="font-medium dark:text-white">Parameters</h4>
+                          {selectedToolObj.inputSchema && selectedToolObj.inputSchema.properties ? (
+                            // Use inputSchema if available
+                            Object.entries(selectedToolObj.inputSchema.properties).map(([key, value]: [string, any]) => {
+                              const isRequired = selectedToolObj.inputSchema.required && 
+                                                selectedToolObj.inputSchema.required.includes(key);
+                              return (
                                 <div key={key}>
                                   <div className="mb-1 block">
-                                    <Label htmlFor={`arg-${key}`} value={`${key}${value.required ? ' *' : ''}`} />
+                                    <Label htmlFor={`arg-${key}`} value={`${key}${isRequired ? ' *' : ''}`} className="dark:text-white" />
                                     {value.description && (
                                       <p className="text-xs text-gray-500 dark:text-gray-400">{value.description}</p>
                                     )}
@@ -413,30 +379,49 @@ export default function ToolsPanel({ isConnected, client, addLog }: ToolsPanelPr
                                     id={`arg-${key}`}
                                     value={toolArgs[key] || ""}
                                     onChange={(e) => handleToolArgChange(key, e.target.value)}
-                                    required={value.required}
+                                    required={isRequired}
                                     placeholder={value.type === 'number' ? "0" : value.type === 'boolean' ? "true/false" : ""}
                                   />
                                 </div>
-                              ))
-                            )}
-                          </div>
-                        ) : (
-                          <Alert color="info">
-                            This tool doesn&apos;t have any parameters
-                          </Alert>
-                        )
-                      )}
-                    </div>
-                    
-                    <Button 
-                      onClick={callTool} 
-                      disabled={loadingTool}
-                      isProcessing={loadingTool}
-                    >
-                      Call Tool
-                    </Button>
+                              );
+                            })
+                          ) : (
+                            // Fall back to parameters if inputSchema is not available
+                            Object.entries(selectedToolObj.parameters).map(([key, value]: [string, any]) => (
+                              <div key={key}>
+                                <div className="mb-1 block">
+                                  <Label htmlFor={`arg-${key}`} value={`${key}${value.required ? ' *' : ''}`} className="dark:text-white" />
+                                  {value.description && (
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">{value.description}</p>
+                                  )}
+                                </div>
+                                <TextInput
+                                  id={`arg-${key}`}
+                                  value={toolArgs[key] || ""}
+                                  onChange={(e) => handleToolArgChange(key, e.target.value)}
+                                  required={value.required}
+                                  placeholder={value.type === 'number' ? "0" : value.type === 'boolean' ? "true/false" : ""}
+                                />
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      ) : (
+                        <Alert color="info">
+                          This tool doesn&apos;t have any parameters
+                        </Alert>
+                      )
+                    )}
                   </div>
-                )}
+                  
+                  <Button 
+                    onClick={callTool} 
+                    disabled={loadingTool}
+                    isProcessing={loadingTool}
+                  >
+                    Call Tool
+                  </Button>
+                </div>
 
                 {toolError && (
                   <Alert color="failure" className="mb-4">
@@ -455,7 +440,7 @@ export default function ToolsPanel({ isConnected, client, addLog }: ToolsPanelPr
                         <Accordion.Panel>
                           <Accordion.Title>Raw Response</Accordion.Title>
                           <Accordion.Content>
-                            <pre className="whitespace-pre-wrap break-all">
+                            <pre className="whitespace-pre-wrap break-all dark:text-gray-300">
                               {JSON.stringify(toolResult, null, 2)}
                             </pre>
                           </Accordion.Content>
@@ -464,12 +449,12 @@ export default function ToolsPanel({ isConnected, client, addLog }: ToolsPanelPr
                       
                       {toolResult.content && (
                         <div className="mt-4">
-                          <h4 className="mb-2 font-medium">Content:</h4>
+                          <h4 className="mb-2 font-medium dark:text-white">Content:</h4>
                           {toolResult.content.map((item: any, index: number) => (
                             <div key={index} className="mb-2 rounded border border-gray-200 p-2 dark:border-gray-600">
-                              <div><strong>Type:</strong> {item.type}</div>
-                              {item.text && <div className="mt-1"><strong>Text:</strong> {item.text}</div>}
-                              {item.url && <div className="mt-1"><strong>URL:</strong> <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline dark:text-blue-400">{item.url}</a></div>}
+                              <div><strong className="dark:text-white">Type:</strong> <span className="dark:text-gray-300">{item.type}</span></div>
+                              {item.text && <div className="mt-1"><strong className="dark:text-white">Text:</strong> <span className="dark:text-gray-300">{item.text}</span></div>}
+                              {item.url && <div className="mt-1"><strong className="dark:text-white">URL:</strong> <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline dark:text-blue-400">{item.url}</a></div>}
                             </div>
                           ))}
                         </div>
